@@ -1,0 +1,9 @@
+*.qsb
+*.so
+*.o
+*.swp
+*.kate-swp
+
+
+# арт не публикуется, положи свои картинки в shell/assets/
+shell/assets/nier-art*

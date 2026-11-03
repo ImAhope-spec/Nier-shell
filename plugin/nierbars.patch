@@ -1,0 +1,332 @@
+--- a/barDeco.cpp
++++ b/barDeco.cpp
+@@ -34,20 +34,74 @@
+     return CHyprColor{static_cast<uint64_t>(color)};
+ }
+ 
+-CHyprBar::CHyprBar(PHLWINDOW pWindow) : IHyprWindowDecoration(pWindow) {
++// NieR: прямоугольник со срезанными углами (угол 45 градусов): tl, tr, bl, br - размер среза в физических px.
++// Рисуем горизонтальными полосками по 1 px: на каждой строке срез сокращается на 1 px. На самой диагонали
++// добавляем пиксель с половинной прозрачностью: для 45 градусов это точное сглаживание.
++// Используются только те же вызовы renderRect, что и у оригинального плагина.
++static void renderBeveledBox(const CBox& box, const CHyprColor& color, int tl, int tr, int bl, int br, bool blur, float a) {
++    const double x = box.x, y = box.y, w = box.w, h = box.h;
++    const int    maxB = (int)(std::min(w, h) / 2.0);
++    tl = std::clamp(tl, 0, maxB);
++    tr = std::clamp(tr, 0, maxB);
++    bl = std::clamp(bl, 0, maxB);
++    br = std::clamp(br, 0, maxB);
++
++    CHyprColor edge = color;
++    edge.a *= 0.5F;
++
++    auto fill = [&](const CBox& b, const CHyprColor& c, bool useBlur) {
++        if (b.w < 1 || b.h < 1)
++            return;
++        if (useBlur)
++            g_pHyprOpenGL->renderRect(b, c, {.round = 0, .roundingPower = 2.F, .blur = true, .blurA = a});
++        else
++            g_pHyprOpenGL->renderRect(b, c, {});
++    };
++
++    const int top    = std::max(tl, tr);
++    const int bottom = std::max(bl, br);
++
++    for (int r = 0; r < top; ++r) {
++        const double il = tl > r ? tl - r : 0;
++        const double ir = tr > r ? tr - r : 0;
++        fill({x + il, y + r, w - il - ir, 1.0}, color, blur);
++        if (il > 0)
++            fill({x + il - 1.0, y + r, 1.0, 1.0}, edge, false);
++        if (ir > 0)
++            fill({x + w - ir, y + r, 1.0, 1.0}, edge, false);
++    }
++
++    for (int r = 0; r < bottom; ++r) {
++        const double il = bl > r ? bl - r : 0;
++        const double ir = br > r ? br - r : 0;
++        const double ry = y + h - 1.0 - r;
++        fill({x + il, ry, w - il - ir, 1.0}, color, blur);
++        if (il > 0)
++            fill({x + il - 1.0, ry, 1.0, 1.0}, edge, false);
++        if (ir > 0)
++            fill({x + w - ir, ry, 1.0, 1.0}, edge, false);
++    }
++
++    fill({x, y + top, w, h - top - bottom}, color, blur);
++}
++
++CHyprBar::CHyprBar(PHLWINDOW pWindow, bool footer) : IHyprWindowDecoration(pWindow) {
+     m_pWindow = pWindow;
++    m_footer  = footer;
+ 
+     const auto PMONITOR         = pWindow->m_monitor.lock();
+     PMONITOR->m_scheduledRecalc = true;
+ 
+-    // button events
+-    m_pMouseButtonCallback = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) { onMouseButton(info, e); });
+-    m_pTouchDownCallback   = Event::bus()->m_events.input.touch.down.listen([&](ITouch::SDownEvent e, Event::SCallbackInfo& info) { onTouchDown(info, e); });
+-    m_pTouchUpCallback     = Event::bus()->m_events.input.touch.up.listen([&](ITouch::SUpEvent e, Event::SCallbackInfo& info) { onTouchUp(info, e); });
+-
+-    // move events
+-    m_pTouchMoveCallback = Event::bus()->m_events.input.touch.motion.listen([&](ITouch::SMotionEvent e, Event::SCallbackInfo& info) { onTouchMove(info, e); });
+-    m_pMouseMoveCallback = Event::bus()->m_events.input.mouse.move.listen([&](Vector2D c, Event::SCallbackInfo& info) { onMouseMove(c); });
++    if (!m_footer) {   // у нижней планки нет обработки мыши и касаний
++        // button events
++        m_pMouseButtonCallback = Event::bus()->m_events.input.mouse.button.listen([&](IPointer::SButtonEvent e, Event::SCallbackInfo& info) { onMouseButton(info, e); });
++        m_pTouchDownCallback   = Event::bus()->m_events.input.touch.down.listen([&](ITouch::SDownEvent e, Event::SCallbackInfo& info) { onTouchDown(info, e); });
++        m_pTouchUpCallback     = Event::bus()->m_events.input.touch.up.listen([&](ITouch::SUpEvent e, Event::SCallbackInfo& info) { onTouchUp(info, e); });
++
++        // move events
++        m_pTouchMoveCallback = Event::bus()->m_events.input.touch.motion.listen([&](ITouch::SMotionEvent e, Event::SCallbackInfo& info) { onTouchMove(info, e); });
++        m_pMouseMoveCallback = Event::bus()->m_events.input.mouse.move.listen([&](Vector2D c, Event::SCallbackInfo& info) { onMouseMove(c); });
++    }
+ 
+     Animation::mgr()->createAnimation(configColor(g_pGlobalState->config.barColor->value()), m_cRealBarColor, Config::animationTree()->getAnimationPropertyConfig("border"),
+                                       pWindow, AVARDAMAGE_NONE);
+@@ -64,6 +118,16 @@
+     const auto                 PRECEDENCE = g_pGlobalState->config.barPrecedenceOverBorder->value();
+ 
+     SDecorationPositioningInfo info;
++#ifdef NIER_FOOTER
++    if (m_footer) {
++        info.policy         = m_hidden ? DECORATION_POSITION_ABSOLUTE : DECORATION_POSITION_STICKY;
++        info.edges          = DECORATION_EDGE_BOTTOM;
++        info.priority       = PRECEDENCE ? 10005 : 5000;
++        info.reserved       = true;
++        info.desiredExtents = {{0, 0}, {0, m_hidden || !ENABLED ? 0 : g_pGlobalState->config.footerHeight->value()}};
++        return info;
++    }
++#endif
+     info.policy         = m_hidden ? DECORATION_POSITION_ABSOLUTE : DECORATION_POSITION_STICKY;
+     info.edges          = DECORATION_EDGE_TOP;
+     info.priority       = PRECEDENCE ? 10005 : 5000;
+@@ -370,7 +434,23 @@
+                           scaledButtonSize};
+         buttonBox.round();
+ 
+-        g_pHyprOpenGL->renderRect(buttonBox, color, {.round = static_cast<int>(std::round(scaledButtonSize / 2.0)), .roundingPower = 2.F});
++        const bool SQUAREBUTTONS = g_pGlobalState->config.squareButtons->value();
++
++        // Крайняя кнопка: срезаем её угол у среза заголовка так, чтобы диагонали были параллельны, а зазор постоянным.
++        // Авто-размер: зазор по перпендикуляру = вертикальному отступу кнопки, т.е. срез = 0.4142 * отступ + срез заголовка - отступ от края.
++        int        buttonBevel = 0;
++        const auto BEVELSIZE   = g_pGlobalState->config.bevelSize->value();
++        if (i == 0 && SQUAREBUTTONS && BEVELSIZE > 0) {
++            Config::INTEGER cfg = g_pGlobalState->config.buttonBevel->value();
++            if (cfg < 0)
++                cfg = std::max<int>(0, std::round(0.4142 * ((g_pGlobalState->config.barHeight->value() - button.size) / 2.0) + BEVELSIZE - BARPADDING));
++            buttonBevel = std::min<int>(std::round(cfg * scale), (int)(buttonBox.w / 2));
++        }
++
++        if (buttonBevel > 0)
++            renderBeveledBox(buttonBox, color, BUTTONSRIGHT ? 0 : buttonBevel, BUTTONSRIGHT ? buttonBevel : 0, 0, 0, false, a);
++        else
++            g_pHyprOpenGL->renderRect(buttonBox, color, {.round = SQUAREBUTTONS ? 0 : static_cast<int>(std::round(scaledButtonSize / 2.0)), .roundingPower = 2.F});
+ 
+         offset += scaledButtonsPad + scaledButtonSize;
+     }
+@@ -459,6 +539,7 @@
+     const auto  ENABLETITLE       = g_pGlobalState->config.barTitleEnabled->value();
+     const auto  ENABLEBLUR        = g_pGlobalState->config.barBlur->value();
+     const auto  INACTIVECOLOR     = g_pGlobalState->config.inactiveButtonColor->value();
++    const auto  BEVELSIZE         = g_pGlobalState->config.bevelSize->value();
+ 
+     if (INACTIVECOLOR > 0) {
+         bool currentWindowFocus = PWINDOW == Desktop::focusState()->window();
+@@ -492,6 +573,57 @@
+ 
+     m_seExtents = {{0, HEIGHT}, {}};
+ 
++#ifdef NIER_FOOTER
++    if (m_footer) {
++        const auto FOOTERH = g_pGlobalState->config.footerHeight->value();
++        if (FOOTERH < 1)
++            return;
++
++        const auto FBOX    = assignedBoxGlobal();
++        CBox       footBox = {FBOX.x - pMonitor->m_position.x, FBOX.y - pMonitor->m_position.y - ROUNDING * 3 /* лишнее сверху скрывает трафарет */, FBOX.w, FBOX.h + ROUNDING * 3};
++        footBox.translate(PWINDOW->m_floatingOffset).scale(pMonitor->m_scale).round();
++        if (footBox.w < 1 || footBox.h < 1)
++            return;
++
++        g_pHyprOpenGL->scissor(footBox);
++
++        if (ROUNDING) {
++            CBox windowBox = {PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x + PWINDOW->m_floatingOffset.x - pMonitor->m_position.x + 1,
++                              PWINDOW->position(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y + PWINDOW->m_floatingOffset.y - pMonitor->m_position.y + 1,
++                              PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).x - 2, PWINDOW->size(Desktop::View::IGeometric::GEOMETRIC_CURRENT).y - 2};
++            if (windowBox.w < 1 || windowBox.h < 1)
++                return;
++
++            glClearStencil(0);
++            glClear(GL_STENCIL_BUFFER_BIT);
++            g_pHyprOpenGL->setCapStatus(GL_STENCIL_TEST, true);
++            glStencilFunc(GL_ALWAYS, 1, -1);
++            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
++            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
++            windowBox.translate(WORKSPACEOFFSET).scale(pMonitor->m_scale).round();
++            g_pHyprOpenGL->renderRect(windowBox, CHyprColor(0, 0, 0, 0), {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
++            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
++            glStencilFunc(GL_NOTEQUAL, 1, -1);
++            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
++        }
++
++        const auto FBEVELSIZE = g_pGlobalState->config.bevelSize->value();
++        const int  FBEVEL     = FBEVELSIZE > 0 ? std::min<int>(std::round(FBEVELSIZE * pMonitor->m_scale), std::min<int>((int)(footBox.w / 2), (int)(FOOTERH * pMonitor->m_scale))) : 0;
++        renderBeveledBox(footBox, color, 0, 0, FBEVEL, FBEVEL, SHOULDBLUR, a);
++
++        if (ROUNDING) {
++            glClearStencil(0);
++            glClear(GL_STENCIL_BUFFER_BIT);
++            g_pHyprOpenGL->setCapStatus(GL_STENCIL_TEST, false);
++            glStencilMask(-1);
++            glStencilFunc(GL_ALWAYS, 1, 0xFF);
++        }
++
++        g_pHyprOpenGL->scissor(nullptr);
++        return;
++    }
++#endif
++
+     const auto DECOBOX = assignedBoxGlobal();
+ 
+     const auto BARBUF = DECOBOX.size() * pMonitor->m_scale;
+@@ -533,7 +665,11 @@
+         glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+     }
+ 
+-    if (SHOULDBLUR)
++    const int BEVEL = BEVELSIZE > 0 ? std::min<int>(std::round(BEVELSIZE * pMonitor->m_scale), std::min<int>((int)(titleBarBox.w / 2), (int)(HEIGHT * pMonitor->m_scale))) : 0;
++
++    if (BEVEL > 0)
++        renderBeveledBox(titleBarBox, color, BEVEL, BEVEL, 0, 0, SHOULDBLUR, a);
++    else if (SHOULDBLUR)
+         g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower(), .blur = true, .blurA = a});
+     else
+         g_pHyprOpenGL->renderRect(titleBarBox, color, {.round = scaledRounding, .roundingPower = m_pWindow->roundingPower()});
+@@ -622,7 +758,7 @@
+ }
+ 
+ uint64_t CHyprBar::getDecorationFlags() {
+-    return DECORATION_ALLOWS_MOUSE_INPUT | (g_pGlobalState->config.barPartOfWindow->value() ? DECORATION_PART_OF_MAIN_WINDOW : 0);
++    return (m_footer ? 0 : DECORATION_ALLOWS_MOUSE_INPUT) | (g_pGlobalState->config.barPartOfWindow->value() ? DECORATION_PART_OF_MAIN_WINDOW : 0);
+ }
+ 
+ CBox CHyprBar::assignedBoxGlobal() {
+@@ -630,7 +766,11 @@
+         return {};
+ 
+     CBox box = m_bAssignedBox;
++#ifdef NIER_FOOTER
++    box.translate(g_pDecorationPositioner->getEdgeDefinedPoint(m_footer ? DECORATION_EDGE_BOTTOM : DECORATION_EDGE_TOP, m_pWindow.lock()));
++#else
+     box.translate(g_pDecorationPositioner->getEdgeDefinedPoint(DECORATION_EDGE_TOP, m_pWindow.lock()));
++#endif
+ 
+     const auto PWORKSPACE      = m_pWindow->m_workspace;
+     const auto WORKSPACEOFFSET = PWORKSPACE && !m_pWindow->m_pinned ? PWORKSPACE->m_renderOffset->value() : Vector2D();
+--- a/barDeco.hpp
++++ b/barDeco.hpp
+@@ -23,7 +23,7 @@
+ 
+ class CHyprBar : public IHyprWindowDecoration {
+   public:
+-    CHyprBar(PHLWINDOW);
++    CHyprBar(PHLWINDOW, bool footer = false);
+     virtual ~CHyprBar();
+ 
+     virtual SDecorationPositioningInfo getPositioningInfo();
+@@ -43,6 +43,7 @@
+     virtual uint64_t                   getDecorationFlags();
+ 
+     bool                               m_bButtonsDirty = true;
++    bool                               m_footer        = false;   // NieR: это нижняя планка, а не заголовок
+ 
+     virtual std::string                getDisplayName();
+ 
+--- a/globals.hpp
++++ b/globals.hpp
+@@ -35,8 +35,12 @@
+         SP<Config::Values::CIntValue>        barTextSize;
+         SP<Config::Values::CFontWeightValue> barTextWeight;
+         SP<Config::Values::CIntValue>        barPadding;
++        SP<Config::Values::CIntValue>        bevelSize;      // NieR: размер среза верхних углов, px (0 = выключено)
++        SP<Config::Values::CIntValue>        buttonBevel;    // NieR: срез угла крайней кнопки, px (-1 = подобрать автоматически, 0 = без среза)
++        SP<Config::Values::CIntValue>        footerHeight;   // NieR: высота нижней планки со срезанными углами, px (0 = нет; нужна сборка с NIER_FOOTER)
+         SP<Config::Values::CIntValue>        barButtonPadding;
+         SP<Config::Values::CBoolValue>       barBlur, barTitleEnabled, barPartOfWindow, barPrecedenceOverBorder, enabled, iconOnHover;
++        SP<Config::Values::CBoolValue>       squareButtons;  // NieR: квадратные кнопки вместо круглых
+         SP<Config::Values::CStringValue>     barTextFont, barTextAlign, barButtonsAlignment, onDoubleClick;
+     } config;
+ };
+--- a/main.cpp
++++ b/main.cpp
+@@ -41,6 +41,16 @@
+         g_pGlobalState->bars.emplace_back(bar);
+         bar->m_self = bar;
+         HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(bar));
++
++#ifdef NIER_FOOTER
++        // нижняя планка со срезанными нижними углами (второй экземпляр декорации на нижнем краю)
++        if (g_pGlobalState->config.footerHeight->value() > 0) {
++            auto footer = makeUnique<CHyprBar>(window, true);
++            g_pGlobalState->bars.emplace_back(footer);
++            footer->m_self = footer;
++            HyprlandAPI::addWindowDecoration(PHANDLE, window, std::move(footer));
++        }
++#endif
+     }
+ }
+ 
+@@ -232,6 +242,10 @@
+     g_pGlobalState->config.enabled             = makeShared<Config::Values::CBoolValue>("plugin:hyprbars:enabled", "Whether bars are enabled", true);
+     g_pGlobalState->config.iconOnHover         = makeShared<Config::Values::CBoolValue>("plugin:hyprbars:icon_on_hover", "Whether to use an icon on hover of the buttons", false);
+     g_pGlobalState->config.onDoubleClick       = makeShared<Config::Values::CStringValue>("plugin:hyprbars:on_double_click", "Action to execute on double click of the bar", "");
++    g_pGlobalState->config.bevelSize           = makeShared<Config::Values::CIntValue>("plugin:hyprbars:bevel_size", "Size (px) of the cut top corners of the bar, 0 = off", 0);
++    g_pGlobalState->config.squareButtons       = makeShared<Config::Values::CBoolValue>("plugin:hyprbars:square_buttons", "Square buttons instead of round ones", false);
++    g_pGlobalState->config.buttonBevel         = makeShared<Config::Values::CIntValue>("plugin:hyprbars:button_bevel", "Cut size (px) of the outer button's corner, -1 = auto, 0 = off", -1);
++    g_pGlobalState->config.footerHeight        = makeShared<Config::Values::CIntValue>("plugin:hyprbars:footer_height", "Height (px) of the bottom strip with cut corners, 0 = off", 0);
+ 
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.barColor);
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.textColor);
+@@ -251,6 +265,10 @@
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.enabled);
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.iconOnHover);
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.onDoubleClick);
++    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.bevelSize);
++    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.squareButtons);
++    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.buttonBevel);
++    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.footerHeight);
+ 
+     if (Config::mgr()->type() == Config::CONFIG_LEGACY)
+         HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:hyprbars:hyprbars-button", onNewButton, Hyprlang::SHandlerOptions{});
+@@ -269,7 +287,7 @@
+ 
+     HyprlandAPI::reloadConfig();
+ 
+-    return {"hyprbars", "A plugin to add title bars to windows.", "Vaxry", "1.0"};
++    return {"hyprbars", "Title bars with cut (beveled) corners for the NieR shell. Based on hyprbars by Vaxry.", "Vaxry / nier-shell", "1.0"};
+ }
+ 
+ APICALL EXPORT void PLUGIN_EXIT() {
+--- a/Makefile
++++ b/Makefile
+@@ -9,14 +9,15 @@
+ CXXFLAGS += -shared -fPIC -std=c++2b -Wno-c++11-narrowing
+ INCLUDES = `pkg-config --cflags pixman-1 libdrm hyprland libinput libudev wayland-server xkbcommon`
+ LIBS =
++NIER_DEFS ?=
+ 
+ SRC = main.cpp barDeco.cpp BarPassElement.cpp
+-TARGET = hyprbars.so
++TARGET = nierbars.so
+ 
+ all: $(TARGET)
+ 
+ $(TARGET): $(SRC)
+-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(EXTRA_FLAGS) $(INCLUDES) $^ $> -o $@ $(LIBS)
++	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(EXTRA_FLAGS) $(INCLUDES) $(NIER_DEFS) $^ $> -o $@ $(LIBS)
+ 
+ clean:
+ 	rm ./$(TARGET)
