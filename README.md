@@ -1,34 +1,40 @@
 # nier-shell
 
-Shell для Hyprland в стиле NieR: Automata: HUD, уведомления, лаунчер, плеер, экран блокировки, менеджер обоев, меню питания. Сделан на Quickshell, сессия Hyprland настроена на Lua.
+**English** | [Русский](README.ru.md)
 
-![HUD](screenshots/hud.png)
+A NieR: Automata-style shell for Hyprland: HUD, notifications, launcher, media player, lock screen, wallpaper manager, and power menu. Built with Quickshell; the Hyprland session is configured in Lua.
 
-## Что внутри
+[![HUD](screenshots/hud.png)](screenshots/hud.png)
 
-- `shell/` — сам шелл (QML, шейдеры)
-- `session/hyprland.lua` — конфиг сессии (Hyprland 0.56)
-- `plugin/` — плагин `nierbars` (заголовки окон со срезанными углами, патч поверх hyprbars)
-- `install.sh`, `build.sh`, `run-nested.sh` — установка, сборка шейдеров и плагина
-## Зависимости
+## What's inside
+
+- `shell/` — the shell itself (QML, shaders)
+- `session/hyprland.lua` — session config (Hyprland 0.56)
+- `plugin/` — the `nierbars` plugin (window title bars with cut corners, a patch on top of hyprbars)
+- `install.sh`, `build.sh`, `run-nested.sh` — installation, shader and plugin build scripts
+
+See [hotkeys.md](hotkeys.md) for the full list of keybindings.
+
+## Dependencies
 
 Hyprland 0.56, Quickshell, `qt6-shadertools` (qsb), `cliphist`, `wl-clipboard`, `brightnessctl`, NetworkManager (`nmcli`), PipeWire.
 
-## Установка
+## Installation
 
-```bash
+```
 git clone <repo> && cd nier-shell
 bash install.sh
 ```
 
-Плагин окон собирается отдельно (`bash build-nierbars.sh`), подробности в `plugin/README.md`. Собранный `.so` привязан к версии Hyprland, поэтому в репозитории его нет.
+The window plugin is built separately (`bash build-nierbars.sh`); see `plugin/README.md` for details. The compiled `.so` is tied to the Hyprland version, so it is not included in the repository.
 
-## Настройки
+## Settings
 
-Опции лежат в `shell/Theme.qml`. Режим блокировки при сне, `lockWhen`:
+Options live in `shell/Theme.qml`. Lock mode on sleep, `lockWhen`:
 
-- `"after"` — перед сном показывается заглушка, блокировка поднимается после пробуждения
-- `"before"` — блокировка до сна (надёжнее, но на некоторых системах после пробуждения замирает ввод)
+- `"after"` — a placeholder is shown before sleep, and the lock appears after wake-up
+- `"before"` — lock before sleep (more reliable, but on some systems input freezes after wake-up)
 
-## Известные проблемы
+## Known issues
 
+<!-- TODO: the "Known issues" section was empty in the version I could see; paste the original content here -->

@@ -1,88 +1,90 @@
-# Хоткеи nier-shell (Hyprland)
+# nier-shell hotkeys (Hyprland)
 
-`Mod` = **SUPER** в обычной сессии и **ALT** при запуске во вложенном режиме (`NIER_NESTED=1`).
+**English** | [Русский](hotkeys.ru.md)
 
-## Приложения
+`Mod` = **SUPER** in a regular session and **ALT** when running in nested mode (`NIER_NESTED=1`).
 
-| Комбинация | Действие |
-|---|---|
-| `Mod + Q` | Терминал (kitty) |
-| `Mod + Shift + T` | Терминал (kitty) |
-| `Mod + E` | Файловый менеджер (dolphin) |
+## Applications
 
-## Панели шелла (quickshell)
+| Shortcut          | Action                  |
+|-------------------|-------------------------|
+| `Mod + Q`         | Terminal (kitty)        |
+| `Mod + Shift + T` | Terminal (kitty)        |
+| `Mod + E`         | File manager (dolphin)  |
 
-| Комбинация | Действие |
-|---|---|
-| `Mod + Space` | Лаунчер |
-| `Mod + R` | Лаунчер |
-| `Mod + S` | Панель управления |
-| `Mod + Shift + V` | Панель управления |
-| `Mod + Shift + O` | Медиа |
-| `Mod + Shift + P` | Меню питания |
-| `Mod + Shift + X` | Не беспокоить (DND) |
-| `Mod + Shift + W` | Обои |
-| `Mod + V` | История буфера обмена |
-| `Mod + T` | Трей |
-| `Mod + ,` | Настройки |
-| `Mod + Shift + Backspace` | Настройки |
+## Shell panels (quickshell)
 
-## Система
+| Shortcut                  | Action            |
+|---------------------------|-------------------|
+| `Mod + Space`             | Launcher          |
+| `Mod + R`                 | Launcher          |
+| `Mod + S`                 | Control panel     |
+| `Mod + Shift + V`         | Control panel     |
+| `Mod + Shift + O`         | Media             |
+| `Mod + Shift + P`         | Power menu        |
+| `Mod + Shift + X`         | Do Not Disturb    |
+| `Mod + Shift + W`         | Wallpapers        |
+| `Mod + V`                 | Clipboard history |
+| `Mod + T`                 | Tray              |
+| `Mod + ,`                 | Settings          |
+| `Mod + Shift + Backspace` | Settings          |
 
-| Комбинация | Действие |
-|---|---|
-| `Mod + Shift + L` | Блокировка экрана |
-| `Mod + Shift + S` | Скриншот области (grim + slurp), сохраняется в `~/Pictures/Screenshots` и копируется в буфер |
-| `Mod + Shift + K` | Режим kill: клик по окну закрывает его процесс |
-| `Mod + M` | Выход из Hyprland |
+## System
 
-## Окна
+| Shortcut          | Action                                                                                          |
+|-------------------|-------------------------------------------------------------------------------------------------|
+| `Mod + Shift + L` | Lock screen                                                                                     |
+| `Mod + Shift + S` | Region screenshot (grim + slurp), saved to `~/Pictures/Screenshots` and copied to the clipboard |
+| `Mod + Shift + K` | Kill mode: clicking a window kills its process                                                  |
+| `Mod + M`         | Exit Hyprland                                                                                   |
 
-| Комбинация | Действие |
-|---|---|
-| `Mod + C` | Закрыть окно |
-| `Mod + F` | Переключить floating |
-| `Mod + Shift + F` | Полноэкранный режим |
-| `Mod + P` | Pseudo-режим (dwindle) |
-| `Mod + J` | Сменить направление разделения (togglesplit) |
-| `Mod + ←/→/↑/↓` | Переместить фокус |
-| `Mod + Shift + ←/→/↑/↓` | Переместить окно |
-| `Ctrl + Shift + ←/→/↑/↓` | Изменить размер окна на 40 px (с повтором при удержании) |
-| `Mod + ЛКМ` (перетаскивание) | Двигать окно |
-| `Mod + ПКМ` (перетаскивание) | Изменять размер окна |
+## Windows
 
-Двойной клик по заголовку окна (hyprbars) разворачивает/сворачивает окно.
+| Shortcut                     | Action                                                  |
+|------------------------------|---------------------------------------------------------|
+| `Mod + C`                    | Close window                                            |
+| `Mod + F`                    | Toggle floating                                         |
+| `Mod + Shift + F`            | Fullscreen                                              |
+| `Mod + P`                    | Pseudo mode (dwindle)                                   |
+| `Mod + J`                    | Change split direction (togglesplit)                    |
+| `Mod + ←/→/↑/↓`              | Move focus                                              |
+| `Mod + Shift + ←/→/↑/↓`      | Move window                                             |
+| `Ctrl + Shift + ←/→/↑/↓`     | Resize window by 40 px (repeats while held)             |
+| `Mod + LMB` (drag)           | Move window                                             |
+| `Mod + RMB` (drag)           | Resize window                                           |
 
-## Воркспейсы
+Double-clicking a window title bar (hyprbars) maximizes/restores the window.
 
-| Комбинация | Действие |
-|---|---|
-| `Mod + 1…9, 0` | Перейти на воркспейс 1–10 (`0` = 10) |
-| `Mod + Shift + 1…9, 0` | Переместить окно на воркспейс 1–10 |
-| `Mod + колесо вниз` | Следующий воркспейс |
-| `Mod + колесо вверх` | Предыдущий воркспейс |
-| `Mod + `` ` `` | Показать/скрыть special-воркспейс `magic` |
-| `Mod + Shift + `` ` `` | Переместить окно в `special:magic` |
-| Свайп тремя пальцами по горизонтали | Переключение воркспейсов (тачпад) |
+## Workspaces
 
-## Раскладка клавиатуры
+| Shortcut                        | Action                                    |
+|---------------------------------|-------------------------------------------|
+| `Mod + 1…9, 0`                  | Go to workspace 1–10 (`0` = 10)           |
+| `Mod + Shift + 1…9, 0`          | Move window to workspace 1–10             |
+| `Mod + scroll down`             | Next workspace                            |
+| `Mod + scroll up`               | Previous workspace                        |
+| ``Mod + ` ``                    | Show/hide the `magic` special workspace   |
+| ``Mod + Shift + ` ``            | Move window to `special:magic`            |
+| Three-finger horizontal swipe   | Switch workspaces (touchpad)              |
 
-| Комбинация | Действие |
-|---|---|
-| `Alt + Shift` | Переключение us / ru (только вне nested-режима) |
+## Keyboard layout
 
-## Мультимедиа-клавиши
+| Shortcut      | Action                                         |
+|---------------|------------------------------------------------|
+| `Alt + Shift` | Switch us / ru (outside nested mode only)      |
 
-Работают и на заблокированном экране.
+## Multimedia keys
 
-| Клавиша | Действие |
-|---|---|
-| `XF86AudioRaiseVolume` | Громкость +5% (макс. 100%) |
-| `XF86AudioLowerVolume` | Громкость −5% |
-| `XF86AudioMute` | Выключить/включить звук |
-| `XF86AudioMicMute` | Выключить/включить микрофон |
-| `XF86MonBrightnessUp` | Яркость + (OSD рисует шелл) |
-| `XF86MonBrightnessDown` | Яркость − (OSD рисует шелл) |
-| `XF86AudioPlay` / `XF86AudioPause` | Play/Pause (playerctl) |
-| `XF86AudioNext` | Следующий трек |
-| `XF86AudioPrev` | Предыдущий трек |
+These also work on the lock screen.
+
+| Key                                | Action                          |
+|------------------------------------|---------------------------------|
+| `XF86AudioRaiseVolume`             | Volume +5% (max 100%)           |
+| `XF86AudioLowerVolume`             | Volume −5%                      |
+| `XF86AudioMute`                    | Mute/unmute audio               |
+| `XF86AudioMicMute`                 | Mute/unmute microphone          |
+| `XF86MonBrightnessUp`              | Brightness + (OSD drawn by the shell) |
+| `XF86MonBrightnessDown`            | Brightness − (OSD drawn by the shell) |
+| `XF86AudioPlay` / `XF86AudioPause` | Play/Pause (playerctl)          |
+| `XF86AudioNext`                    | Next track                      |
+| `XF86AudioPrev`                    | Previous track                  |
